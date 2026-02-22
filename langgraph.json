@@ -1,0 +1,9 @@
+{
+    "dependencies": ["."],
+    "graphs": {
+      "master": "./main.py:graph",
+      "research": "./research_graph.py:research_graph",
+      "image": "./image_graph.py:image_graph"
+    },
+    "env": ".env"
+  }
