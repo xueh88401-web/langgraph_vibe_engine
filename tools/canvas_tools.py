@@ -1,22 +1,44 @@
 """
-画布操作工具 — 纯内存模拟版
+画布操作工具 — 文件持久化版
 
-用一个全局 dict 模拟 workspace，所有画布存在内存里。
-先跑通 Graph 流程，后续可替换为:
-  方案A: 接原项目的 workspace 服务 (tools/workspace_tool.py)
-  方案B: 接第三方文档 API
+Workspace 数据保存在 .workspace.json 文件中，支持多进程共享。
 """
-
 import json
+from pathlib import Path
 from typing import Optional
 from langchain_core.tools import tool
 
 
-# ── 内存 Workspace ──────────────────────────────────────
+# ── Workspace 持久化 ──────────────────────────────────────
 # 结构: { "/path/to/canvas": { "title": str, "content": [line1, line2, ...] } }
-_WORKSPACE: dict[str, dict] = {}
+WORKSPACE_FILE = Path(__file__).parent.parent / ".workspace.json"
 
 
+def _load_workspace() -> dict:
+    """从文件加载 workspace"""
+    if WORKSPACE_FILE.exists():
+        try:
+            with open(WORKSPACE_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"加载 workspace 失败: {e}")
+            return {}
+    return {}
+
+
+def _save_workspace(workspace: dict) -> None:
+    """保存 workspace 到文件"""
+    try:
+        with open(WORKSPACE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(workspace, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"保存 workspace 失败: {e}")
+
+
+# 初始化时加载
+_WORKSPACE: dict[str, dict] = _load_workspace()
+
+#----------------------------------
 def _normalize_path(path: str) -> str:
     """统一路径格式: 确保 / 开头，去掉尾部 /"""
     path = path.strip()
@@ -66,6 +88,7 @@ def canvas_create(title: str, content: str, parent_canvas_path: str = "/") -> st
 
     lines = content.split("\n") if content else []
     _WORKSPACE[full_path] = {"title": title.strip(), "content": lines}
+    _save_workspace(_WORKSPACE)
     return f"Canvas created at '{full_path}' ({len(lines)} lines)"
 
 
@@ -98,6 +121,7 @@ def canvas_update(target_canvas_path: str, operations: str) -> str:
         lines[start:end] = new_lines
 
     canvas["content"] = lines
+    _save_workspace(_WORKSPACE)
     return f"Canvas updated at '{path}' (now {len(lines)} lines, {len(ops)} operations applied)"
 
 
@@ -118,6 +142,7 @@ def canvas_insert(target_canvas_path: str, insert_line: int, content: str) -> st
     new_lines = content.split("\n") if content else [""]
     pos = max(0, min(insert_line, len(canvas["content"])))
     canvas["content"][pos:pos] = new_lines
+    _save_workspace(_WORKSPACE)
     return f"Inserted {len(new_lines)} lines after line {insert_line} in '{path}' (now {len(canvas['content'])} lines)"
 
 
@@ -132,6 +157,7 @@ def canvas_delete(target_canvas_path: str) -> str:
     if path not in _WORKSPACE:
         return f"Error: Canvas not found at '{path}'"
     del _WORKSPACE[path]
+    _save_workspace(_WORKSPACE)
     return f"Canvas deleted: '{path}'"
 
 

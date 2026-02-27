@@ -19,14 +19,8 @@ def archive_source_into_scratchpad(url: str, annotation: str, excerpted_line_ran
         annotation: Free-form annotation for this source.
         excerpted_line_ranges: JSON string of inclusive line ranges, e.g. [[1,1],[3,10]].
     """
-    # TODO: 实现 scratchpad 存储逻辑
-    # 原项目中写入 ctx.payload.research_scratchpad 和 research_scratchpad_store
-    # 在 LangGraph 中可以通过 State 的 scratchpad 字段实现
-    #
-    # 简化实现思路:
-    # 1. 从 tool 的 config 中获取 state 引用 (或用 RunnableConfig)
-    # 2. 将 {url, annotation, excerpts} 追加到 state["scratchpad"]
-
+    # 实际存储逻辑在 research_graph.py 的 research_tools_node 中完成:
+    # 工具执行后，从 tool_calls 参数中提取数据写入 state["scratchpad"]。
     return f"Recorded into scratchpad: {url}"
 
 

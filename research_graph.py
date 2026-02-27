@@ -88,6 +88,12 @@ def research_agent_node(state: VibeResearchState) -> dict:
         if mode == "persist":
             ws = state.get("research_sub_workspace", "")
             system_prompt += f"\nresearch_sub_workspace: {ws}"
+        # 注入已归档的调研素材，让 LLM 写报告时有据可依
+        scratchpad = state.get("scratchpad", {})
+        if scratchpad:
+            system_prompt += "\n\n# Archived Sources\n"
+            for i, (url, entry) in enumerate(scratchpad.items(), 1):
+                system_prompt += f"\n[{i}] {url}\n    Annotation: {entry.get('annotation', '')}\n"
         messages.insert(0, SystemMessage(content=system_prompt))
 
     response = llm.invoke(messages)
@@ -119,15 +125,24 @@ def research_tools_node(state: VibeResearchState) -> dict:
             break
     
     is_terminated = False
+    scratchpad = dict(state.get("scratchpad", {}))
+
     if last_ai_msg:
         for tc in last_ai_msg.tool_calls:
             if tc["name"] in TERMINATING_TOOL_NAMES:
                 is_terminated = True
-                break
+            elif tc["name"] == "archive_source_into_scratchpad":
+                url = tc["args"].get("url", "")
+                scratchpad[url] = {
+                    "url": url,
+                    "annotation": tc["args"].get("annotation", ""),
+                    "excerpted_line_ranges": tc["args"].get("excerpted_line_ranges", "[]"),
+                }
 
     return {
         **result,
         "is_terminated": is_terminated,
+        "scratchpad": scratchpad,
     }
 
 

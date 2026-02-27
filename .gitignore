@@ -36,7 +36,11 @@ langgraph_*.db
 ehthumbs.db
 Thumbs.db
 
+# Node
+node_modules/
+
 # Project specific
 data/
 logs/
 *.log
+.workspace.json
